@@ -1,0 +1,16 @@
+{
+  "name": "ChatNanpa",
+  "version": "0.1",
+  "manifest_version": 2,
+  "description": "ChatWorkを調教するプラグイン",
+  "content_security_policy": "script-src 'self'; object-src 'self'",
+  "content_scripts": [
+    {
+      "matches": ["https://kcw.kddi.ne.jp/*", "https://www.chatwork.com/*"],
+      "js": ["content_script.js"],
+      "run_at": "document_end",
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": ["chatwork_nanpa.js"]
+}
