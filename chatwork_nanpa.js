@@ -55,8 +55,6 @@ _CW.ex_notice = {
     arr : [],
     hkeyword : [],
     keyword : [],
-//    hkeyword : ['今冨','Imatomi','Tomoki','newfantasy','deploy'],
-//    keyword : ['今冨','Imatomi','Tomoki','newfantasy','deploy','重要','共有','確認','タスク'],
     set_keyword : function (room){
         var k;
         if(room.type=="my" && room.description){
@@ -181,13 +179,6 @@ window.addEventListener('load',function(e){
                         }
                         
                     }
-                }
-                if(room.type=="my"){
-                    var a = {cmd: "get_description",room_id: room.id};
-                    console.dir(a)
-                    CW.get("gateway.php", a, function(a) {
-                        console.dir(a)
-                    });
                 }
             }
         });
