@@ -160,21 +160,29 @@ window.addEventListener('load',function(e){
                             _CW.ex_notice.popup(j,rval.chat_list[v].id,CW.getAvatarPanel(rval.chat_list[v].aid, {src: !0}),g.getName(),AC.getName(rval.chat_list[v].aid) + ":" + rval.chat_list[v].msg);
                         }
                         /* room group highlight */
-                        d = $('#cw_r'+j);
-                        if(!d.hasClass('ui_chat_highlight')){
-                            d.addClass("selected");
-                        }
+						if(_CW.ex_notice.highlight_group===undefined) _CW.ex_notice.highlight_group = [];
+						_CW.ex_notice.highlight_group.push(j);
                     }
                 }
             }
         }
     };
     _CW.Aspect.before(RL, ["updateRoomData"], aspect);
-    var aspect_hilight = function(invocation){
+    var aspect_highlight = function(invocation){
         if(invocation.result.length==0) return;
         /* timeline highlight */
         return _CW.ex_notice.highlight(invocation.result);
     };
-    _CW.Aspect.after(CW, ["renderMessage"], aspect_hilight);
-	
+    _CW.Aspect.after(CW, ["renderMessage"], aspect_highlight);
+    var aspect_group_highlight = function(invocation){
+		if(_CW.ex_notice.highlight_group===undefined || _CW.ex_notice.highlight_group.length==0) return;
+		do {
+			d = $('#cw_r'+_CW.ex_notice.highlight_group.shift()).not('dev_selected');
+			if(!d.hasClass('chrome_extension_ghighlight')){
+				d.addClass("chrome_extension_ghighlight");
+			}
+		} while( _CW.ex_notice.highlight_group.length != 0 );
+		return;
+    };
+    _CW.Aspect.after(RL.view, ["build"], aspect_group_highlight);
 });
