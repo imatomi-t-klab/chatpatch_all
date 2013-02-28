@@ -116,11 +116,9 @@ _CW.ex_notice = {
     },
     highlight : function(msg){
         if(msg===undefined || !msg) return;
-		if(msg.match(/>([^<>]*)</g) > 0){
-            msg = msg.replace( />([^<>]*)</g, function(args){
-				for(var i=1; i<args.length-2; i++){
-					return '>'+_CW.ex_notice.get_highlight(args[i])+'<';
-				}
+		if( msg.match(/>([^<>]*)/g) != void 0){
+            msg = msg.replace( />([^<>]*)/g, function(args){
+				return _CW.ex_notice.get_highlight(args);
             });
         } else {
             msg = this.get_highlight(msg);
@@ -139,7 +137,7 @@ _CW.ex_notice = {
 }
 
 window.addEventListener('load',function(e){
-    var aspect = function(invocation){
+    var aspect_notice = function(invocation){
         var a = invocation.arguments[0];
         var ch_notification = (location.hash.indexOf('rid') > -1)? location.hash.match(/rid([0-9]*)/)[1]: false;
         _CW.ex_notice.get_keyword( );
@@ -160,14 +158,16 @@ window.addEventListener('load',function(e){
                             _CW.ex_notice.popup(j,rval.chat_list[v].id,CW.getAvatarPanel(rval.chat_list[v].aid, {src: !0}),g.getName(),AC.getName(rval.chat_list[v].aid) + ":" + rval.chat_list[v].msg);
                         }
                         /* room group highlight */
-						if(_CW.ex_notice.highlight_group===undefined) _CW.ex_notice.highlight_group = [];
+						if(_CW.ex_notice.highlight_group===undefined){
+							_CW.ex_notice.highlight_group = [];
+						}
 						_CW.ex_notice.highlight_group.push(j);
                     }
                 }
             }
         }
     };
-    _CW.Aspect.before(RL, ["updateRoomData"], aspect);
+    _CW.Aspect.before(RL, ["updateRoomData"], aspect_notice);
     var aspect_highlight = function(invocation){
         if(invocation.result.length==0) return;
         /* timeline highlight */
@@ -176,6 +176,7 @@ window.addEventListener('load',function(e){
     _CW.Aspect.after(CW, ["renderMessage"], aspect_highlight);
     var aspect_group_highlight = function(invocation){
 		if(_CW.ex_notice.highlight_group===undefined || _CW.ex_notice.highlight_group.length==0) return;
+		/* output room group highlight */
 		do {
 			d = $('#cw_r'+_CW.ex_notice.highlight_group.shift()).not('dev_selected');
 			if(!d.hasClass('chrome_extension_ghighlight')){
