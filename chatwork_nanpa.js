@@ -46,54 +46,62 @@ _CW.Aspect = {
     }
 }
 _CW.ex_notice = {
-    arr : [],
-    hkeyword : [],
-    keyword : [],
-    once : true,
-    get_keyword : function(){
-        if( AC.getRoomId(AC.myid)!=0 && this.once ){
-            this.once = false;
-            var params = {cmd: "load_chat",room_id: AC.getRoomId(AC.myid),last_chat_id: 0,first_chat_id: 0,unread_num: 0, desc:1};
+    hkeyword : {},
+    keyword : {},
+    once : [],
+    get_keyword : function( id ){
+        if(id == undefined || id == 0) return;
+        if( this.once.indexOf(id) == -1 ){
+            this.once.push(id);
+            var params = {cmd: "load_chat",room_id: id,last_chat_id: 0,first_chat_id: 0,unread_num: 0, desc:1};
             CW.getSync("gateway.php", params, function(res) {
-                _CW.ex_notice.set_keyword(res.description);
+                _CW.ex_notice.set_keyword(id, res.description);
             });
-        } 
+        }
     },
-    set_keyword : function ( res ){
-        if(res===undefined) return;
+    set_keyword : function ( id, res ){
+        if(id===undefined || res===undefined) return;
         var k, dk = {};
         matches = res.match(/\[Highlight:(.*)\]/m);
         if(matches!==null){
-            k = this.hkeyword;
+            k = (this.hkeyword[id]!=undefined)? this.hkeyword[id]: [];
             if(matches.length>0 && matches[1].length > 0){
                 dk = matches[1].split(',');
                 dk.forEach(function(v,i){
                     if(k.indexOf(v)==-1) k.push(v);
                 });
-                _CW.ex_notice.hkeyword = k;
+                _CW.ex_notice.hkeyword[id] = k;
             }
         }
         matches = res.match(/\[Keyword:(.*)\]/m);
         if(matches!==null){
-            k = this.keyword;
+            k = (this.keyword[id]!=undefined)? this.keyword[id]: [];
             if(matches.length>0 && matches[1].length > 0){
                 dk = matches[1].split(',');
                 dk.forEach(function(v,i){
                     if(k.indexOf(v)==-1) k.push(v);
                 });
-                _CW.ex_notice.keyword = k;
+                _CW.ex_notice.keyword[id] = k;
             }
         }
     },
-    exist_highlight : function (str){
-        var k = this.hkeyword;
+    exist_highlight : function (id, str){
+        var k = this.hkeyword[id], gb = this.keyword[AC.getRoomId(AC.myid)];
+        if(k===undefined) return false;
+        gb.forEach(function(v,i){
+            if(k.indexOf(v) == -1) k.push(v);
+        });
         for(var i=0; i<k.length; i++){
             if( str.match( new RegExp( k[i], 'i' ) ) ) return true; 
         }
         return false;
     },
-    exist_keyword : function (str){
-        var k = this.keyword;
+    exist_keyword : function (id, str){
+        var k = this.keyword[id], gb = this.keyword[AC.getRoomId(AC.myid)];
+        if(k===undefined) return false;
+        gb.forEach(function(v,i){
+            if(k.indexOf(v) == -1) k.push(v);
+        });
         for(var i=0; i<k.length; i++){
             if( str.match( new RegExp( k[i], 'i' ) ) ) return true; 
         }
@@ -114,21 +122,29 @@ _CW.ex_notice = {
             }
         }
     },
-    highlight : function(msg){
+    highlight : function( id, msg ){
         if(msg===undefined || !msg) return;
-		if( msg.match(/>([^<>]*)/g) != void 0){
+        if( msg.match(/>([^<>]*)/g) != void 0){
             msg = msg.replace( />([^<>]*)/g, function(args){
-				return _CW.ex_notice.get_highlight(args);
+                return _CW.ex_notice.get_highlight(id, args);
             });
         } else {
-            msg = this.get_highlight(msg);
+            msg = this.get_highlight(id, msg);
         }
         return msg;
     },
-    get_highlight : function( msg ){
-        if(msg===undefined) return msg;
-        var dk = this.hkeyword;
+    get_highlight : function( id, msg ){
+        if(id===undefined || msg===undefined) return msg;
+        var dk = this.hkeyword[id], gb = this.keyword[AC.getRoomId(AC.myid)];
+        if(dk===undefined) return msg;
         dk.forEach(function(v,i){
+            if(gb.indexOf(v) > -1) gb.splice(gb.indexOf(v), 1);
+        });
+        dk.forEach(function(v,i){
+            var reg = new RegExp( '(' + v + ')', 'g');
+            msg = msg.replace( reg, "<span class='chrome_extension_group_highlight'>" + v + "</span>" );
+        });
+        gb.forEach(function(v,i){
             var reg = new RegExp( '(' + v + ')', 'g');
             msg = msg.replace( reg, "<span class='chrome_extension_highlight'>" + v + "</span>" );
         });
@@ -139,8 +155,7 @@ _CW.ex_notice = {
 window.addEventListener('load',function(e){
     var aspect_notice = function(invocation){
         var a = invocation.arguments[0];
-        var ch_notification = (location.hash.indexOf('rid') > -1)? location.hash.match(/rid([0-9]*)/)[1]: false;
-        _CW.ex_notice.get_keyword( );
+        _CW.ex_notice.get_keyword( AC.getRoomId(AC.myid) );
         for (j in a) {
             var rval = a[j];
             RL.rooms[j] == void 0 && (RL.rooms[j] = new Room(j));
@@ -151,17 +166,17 @@ window.addEventListener('load',function(e){
             if (rval.chat_list && rval.chat_list.length > 0) {
                 for (var v = rval.chat_list.length-1, cnt=0; cnt < k; v--, cnt++){
                     if(rval.chat_list[v] === undefined) continue;
-                    if(_CW.ex_notice.exist_keyword(rval.chat_list[v].msg)){
+                    if(_CW.ex_notice.exist_keyword(j, rval.chat_list[v].msg)){
                         /* popup */
                         g.keyword_num++;
                         if (window.webkitNotifications){
                             _CW.ex_notice.popup(j,rval.chat_list[v].id,CW.getAvatarPanel(rval.chat_list[v].aid, {src: !0}),g.getName(),AC.getName(rval.chat_list[v].aid) + ":" + rval.chat_list[v].msg);
                         }
                         /* room group highlight */
-						if(_CW.ex_notice.highlight_group===undefined){
-							_CW.ex_notice.highlight_group = [];
-						}
-						_CW.ex_notice.highlight_group.push(j);
+                        if(_CW.ex_notice.highlight_group===undefined){
+                            _CW.ex_notice.highlight_group = [];
+                        }
+                        _CW.ex_notice.highlight_group.push(j);
                     }
                 }
             }
@@ -171,19 +186,22 @@ window.addEventListener('load',function(e){
     var aspect_highlight = function(invocation){
         if(invocation.result.length==0) return;
         /* timeline highlight */
-        return _CW.ex_notice.highlight(invocation.result);
+        _CW.ex_notice.get_keyword( RM.id );
+        return _CW.ex_notice.highlight( RM.id, invocation.result);
     };
     _CW.Aspect.after(CW, ["renderMessage"], aspect_highlight);
     var aspect_group_highlight = function(invocation){
-		if(_CW.ex_notice.highlight_group===undefined || _CW.ex_notice.highlight_group.length==0) return;
-		/* output room group highlight */
-		do {
-			d = $('#cw_r'+_CW.ex_notice.highlight_group.shift()).not('dev_selected');
-			if(!d.hasClass('chrome_extension_ghighlight')){
-				d.addClass("chrome_extension_ghighlight");
-			}
-		} while( _CW.ex_notice.highlight_group.length != 0 );
-		return;
+        if(_CW.ex_notice.highlight_group===undefined || _CW.ex_notice.highlight_group.length==0) return;
+        _CW.ex_notice.get_keyword( RM.id );
+        
+        /* output room group highlight */
+        do {
+            d = $('#cw_r'+_CW.ex_notice.highlight_group.shift()).not('dev_selected');
+            if(!d.hasClass('chrome_extension_ghighlight')){
+                d.addClass("chrome_extension_ghighlight");
+            }
+        } while( _CW.ex_notice.highlight_group.length != 0 );
+        return;
     };
     _CW.Aspect.after(RL.view, ["build"], aspect_group_highlight);
 });
