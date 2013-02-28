@@ -69,7 +69,6 @@ _CW.ex_notice = {
                 dk.forEach(function(v,i){
                     if(k.indexOf(v)==-1) k.push(v);
                 });
-                console.log(k)
                 _CW.ex_notice.hkeyword = k;
             }
         }
@@ -81,7 +80,6 @@ _CW.ex_notice = {
                 dk.forEach(function(v,i){
                     if(k.indexOf(v)==-1) k.push(v);
                 });
-                console.log(k)
                 _CW.ex_notice.keyword = k;
             }
         }
@@ -174,7 +172,6 @@ window.addEventListener('load',function(e){
     };
     _CW.Aspect.before(RL, ["updateRoomData"], aspect);
     var aspect_hilight = function(invocation){
-        console.dir(invocation)
         if(invocation.length==0) return;
         return _CW.ex_notice.highlight(invocation);
     };
