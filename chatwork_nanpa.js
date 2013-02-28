@@ -1,7 +1,4 @@
 if(_CW===undefined) var _CW ={};
-String.prototype.replaceAll = function (s1, s2) {
-    return this.split(s1).join(s2);
-}
 _CW.Aspect = {
     _after : function(target, methodName, aspect) {
         var method = target[methodName];
