@@ -1,28 +1,35 @@
 if(_CW===undefined) var _CW ={};
+String.prototype.replaceAll = function (s1, s2) {
+    return this.split(s1).join(s2);
+}
 _CW.Aspect = {
     _after : function(target, methodName, aspect) {
         var method = target[methodName];
         //overwrite the method.
         target[methodName] = function () {
-            var args = [], result;
-            result = method.apply(this, arguments);
-            return aspect.call(this, result);
+            var args = {
+                'target': CW,
+                'methodName': methodName,
+                'method': method,
+				'arguments':arguments,
+            }, result;
+			args["result"] = method.apply(target, arguments);
+            return aspect.apply(null, [args]);
         };
     },
     _before : function(target, methodName, aspect) {
         var method = target[methodName];
         //overwrite the method.
         target[methodName] = function () {
-            var args = Array.prototype.slice.call(arguments), result;
-            result = aspect.apply(null, args);
-            args.push(result);
-            args.push({
-                target: CW,
-                methodName: methodName,
-                method: method,
-                "cancelled": false
-            });
-            return (args["cancelled"]) ? args["result"] : method.apply(this, arguments);
+            var args = {
+                'target': CW,
+                'methodName': methodName,
+                'method': method,
+				'arguments':arguments,
+                'cancelled': false
+            };
+			aspect.apply(null, [args]);
+            return (args["cancelled"]) ? args["result"] : method.apply(target, arguments);
         };
     },
     _apply : function(func, target, methodNames, aspect) {
@@ -45,41 +52,41 @@ _CW.ex_notice = {
     arr : [],
     hkeyword : [],
     keyword : [],
-    once : true,
-    get_keyword : function(){
-        if( AC.getRoomId(AC.myid)!=0 && this.once ){
-            this.once = false;
-            var params = {cmd: "load_chat",room_id: AC.getRoomId(AC.myid),last_chat_id: 0,first_chat_id: 0,unread_num: 0, desc:1};
-            CW.getSync("gateway.php", params, function(res) {
-                _CW.ex_notice.set_keyword(res.description);
-            });
-        } 
-    },
+	once : true,
+	get_keyword : function(){
+		if( AC.getRoomId(AC.myid)!=0 && this.once ){
+			this.once = false;
+			var params = {cmd: "load_chat",room_id: AC.getRoomId(AC.myid),last_chat_id: 0,first_chat_id: 0,unread_num: 0, desc:1};
+			CW.getSync("gateway.php", params, function(res) {
+				_CW.ex_notice.set_keyword(res.description);
+			});
+		} 
+	},
     set_keyword : function ( res ){
-        if(res===undefined) return;
+		if(res===undefined) return;
         var k, dk = {};
-        matches = res.match(/\[Highlight:(.*)\]/m);
-        if(matches!==null){
-            k = this.hkeyword;
-            if(matches.length>0 && matches[1].length > 0){
-                dk = matches[1].split(',');
-                dk.forEach(function(v,i){
-                    if(k.indexOf(v)==-1) k.push(v);
-                });
-                _CW.ex_notice.hkeyword = k;
-            }
-        }
-        matches = res.match(/\[Keyword:(.*)\]/m);
-        if(matches!==null){
-            k = this.keyword;
-            if(matches.length>0 && matches[1].length > 0){
-                dk = matches[1].split(',');
-                dk.forEach(function(v,i){
-                    if(k.indexOf(v)==-1) k.push(v);
-                });
-                _CW.ex_notice.keyword = k;
-            }
-        }
+		matches = res.match(/\[Highlight:(.*)\]/m);
+		if(matches!==null){
+			k = this.hkeyword;
+			if(matches.length>0 && matches[1].length > 0){
+				dk = matches[1].split(',');
+				dk.forEach(function(v,i){
+					if(k.indexOf(v)==-1) k.push(v);
+				});
+				_CW.ex_notice.hkeyword = k;
+			}
+		}
+		matches = res.match(/\[Keyword:(.*)\]/m);
+		if(matches!==null){
+			k = this.keyword;
+			if(matches.length>0 && matches[1].length > 0){
+				dk = matches[1].split(',');
+				dk.forEach(function(v,i){
+					if(k.indexOf(v)==-1) k.push(v);
+				});
+				_CW.ex_notice.keyword = k;
+			}
+		}
     },
     exist_highlight : function (str){
         var k = this.hkeyword;
@@ -112,33 +119,33 @@ _CW.ex_notice = {
     },
     highlight : function(msg){
         if(msg===undefined || !msg) return;
-        if(msg.match(/>([^<>]*)</g) != null){
-            msg = msg.replace( />([^<>]*)</g, function(args){ 
-                if(args[args.length-1].match("<span class='chrome_extension_highlight'>")==null){
-                    for(var i=1; i<args.length-2; i++){
-                        return '>'+_CW.ex_notice.get_highlight(arguments[i])+'<';
-                    }
-                }
-            });
-        } else {
-            msg = this.get_highlight(msg);
-        }
+		if(msg.match(/>([^<>]*)</g) != null){
+			msg = msg.replace( />([^<>]*)</g, function(args){ 
+				if(args[args.length-1].match("<span class='chrome_extension_highlight'>")==null){
+					for(var i=1; i<args.length-2; i++){
+						return '>'+_CW.ex_notice.get_highlight(arguments[i])+'<';
+					}
+				}
+			});
+		} else {
+			msg = this.get_highlight(msg);
+		}
         return msg;
     },
-    get_highlight : function( msg ){
-        if(msg===undefined) return msg;
-        var dk = this.hkeyword;
-        dk.forEach(function(v,i){
-            var reg = new RegExp( '(' + v + ')', 'g');
-            msg = msg.replace( reg, "<span class='chrome_extension_highlight'>" + v + "</span>" );
-        });
-        return msg;
-    }
+	get_highlight : function( msg ){
+		if(msg===undefined) return msg;
+		var dk = this.hkeyword;
+		dk.forEach(function(v,i){
+			var reg = new RegExp( '(' + v + ')', 'g');
+			msg = msg.replace( reg, "<span class='chrome_extension_highlight'>" + v + "</span>" );
+		});
+		return msg;
+	}
 }
 
 window.addEventListener('load',function(e){
     var aspect = function(invocation){
-        var a = invocation;
+        var a = invocation.arguments[0];
         var ch_notification = (location.hash.indexOf('rid') > -1)? location.hash.match(/rid([0-9]*)/)[1]: false;
         _CW.ex_notice.get_keyword( );
         for (j in a) {
@@ -169,8 +176,8 @@ window.addEventListener('load',function(e){
     };
     _CW.Aspect.before(RL, ["updateRoomData"], aspect);
     var aspect_hilight = function(invocation){
-        if(invocation.length==0) return;
-        return _CW.ex_notice.highlight(invocation);
+		if(invocation.length==0) return;
+		return _CW.ex_notice.highlight(invocation.result);
     };
     _CW.Aspect.after(CW, ["renderMessage"], aspect_hilight);
 });
