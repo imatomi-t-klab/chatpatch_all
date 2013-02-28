@@ -7,23 +7,16 @@ _CW.Aspect = {
         var method = target[methodName];
         //overwrite the method.
         target[methodName] = function () {
-            var args = Array.prototype.slice.call(arguments), result;
+            var args = [], result;
             result = method.apply(this, arguments);
-            args.push(result);
-            args.push({
-                target: CW,
-                methodName: methodName,
-                method: method
-            });
-            return aspect.apply(this, args);
+            return aspect.call(this, result);
         };
     },
     _before : function(target, methodName, aspect) {
         var method = target[methodName];
         //overwrite the method.
         target[methodName] = function () {
-            var args = Array.prototype.slice.call(arguments),
-                result;
+            var args = Array.prototype.slice.call(arguments), result;
             result = aspect.apply(null, args);
             args.push(result);
             args.push({
@@ -55,31 +48,41 @@ _CW.ex_notice = {
     arr : [],
     hkeyword : [],
     keyword : [],
-    set_keyword : function (room){
-        var k;
-        if(room.type=="my" && room.description){
-            var dk = {};
-            matches = room.description.match(/\[Highlight:(.*)\]/m);
-            if(matches!==null){
-                k = this.hkeyword;
-                if(matches.length>0 && matches[1].length > 0){
-                    dk = matches[1].split(',');
-                    dk.forEach(function(v,i){
-                        if(k.indexOf(v)==-1) k.push(v);
-                    });
-                    _CW.ex_notice.hkeyword = k;
-                }
+    once : true,
+    get_keyword : function(){
+        if( AC.getRoomId(AC.myid)!=0 && this.once ){
+            this.once = false;
+            var params = {cmd: "load_chat",room_id: AC.getRoomId(AC.myid),last_chat_id: 0,first_chat_id: 0,unread_num: 0, desc:1};
+            CW.getSync("gateway.php", params, function(res) {
+                _CW.ex_notice.set_keyword(res.description);
+            });
+        } 
+    },
+    set_keyword : function ( res ){
+        if(res===undefined) return;
+        var k, dk = {};
+        matches = res.match(/\[Highlight:(.*)\]/m);
+        if(matches!==null){
+            k = this.hkeyword;
+            if(matches.length>0 && matches[1].length > 0){
+                dk = matches[1].split(',');
+                dk.forEach(function(v,i){
+                    if(k.indexOf(v)==-1) k.push(v);
+                });
+                console.log(k)
+                _CW.ex_notice.hkeyword = k;
             }
-            matches = room.description.match(/\[Keyword:(.*)\]/m);
-            if(matches!==null){
-                k = this.keyword;
-                if(matches.length>0 && matches[1].length > 0){
-                    dk = matches[1].split(',');
-                    dk.forEach(function(v,i){
-                        if(k.indexOf(v)==-1) k.push(v);
-                    });
-                    _CW.ex_notice.keyword = k;
-                }
+        }
+        matches = res.match(/\[Keyword:(.*)\]/m);
+        if(matches!==null){
+            k = this.keyword;
+            if(matches.length>0 && matches[1].length > 0){
+                dk = matches[1].split(',');
+                dk.forEach(function(v,i){
+                    if(k.indexOf(v)==-1) k.push(v);
+                });
+                console.log(k)
+                _CW.ex_notice.keyword = k;
             }
         }
     },
@@ -114,17 +117,26 @@ _CW.ex_notice = {
     },
     highlight : function(msg){
         if(msg===undefined || !msg) return;
-        var dk = this.hkeyword
-        for(var i=0; i<dk.length; i++){
-            var matches = msg.match( new RegExp( dk[i], 'i' ) );
-            if(matches!=null){
-                for(var v=0;v<matches.length;v++){
-                    if(!msg.match('<span class="chrome_extension_highlight">'+matches[v]+'</span>')){
-                        msg = msg.replaceAll( matches[v], '<span class="chrome_extension_highlight">'+matches[v]+'</span>');
+        if(msg.match(/>([^<>]*)</g) != null){
+            msg = msg.replace( />([^<>]*)</g, function(args){ 
+                if(args[args.length-1].match("<span class='chrome_extension_highlight'>")==null){
+                    for(var i=1; i<args.length-2; i++){
+                        return '>'+_CW.ex_notice.get_highlight(arguments[i])+'<';
                     }
                 }
-            }
+            });
+        } else {
+            msg = this.get_highlight(msg);
         }
+        return msg;
+    },
+    get_highlight : function( msg ){
+        if(msg===undefined) return msg;
+        var dk = this.hkeyword;
+        dk.forEach(function(v,i){
+            var reg = new RegExp( '(' + v + ')', 'g');
+            msg = msg.replace( reg, "<span class='chrome_extension_highlight'>" + v + "</span>" );
+        });
         return msg;
     }
 }
@@ -133,6 +145,7 @@ window.addEventListener('load',function(e){
     var aspect = function(invocation){
         var a = invocation;
         var ch_notification = (location.hash.indexOf('rid') > -1)? location.hash.match(/rid([0-9]*)/)[1]: false;
+        _CW.ex_notice.get_keyword( );
         for (j in a) {
             var rval = a[j];
             RL.rooms[j] == void 0 && (RL.rooms[j] = new Room(j));
@@ -140,7 +153,6 @@ window.addEventListener('load',function(e){
             var g = RL.rooms[j],
                 k = g.getUnreadNum();
             g.keyword_num = 0;
-            _CW.ex_notice.set_keyword(g);
             if (rval.chat_list && rval.chat_list.length > 0) {
                 for (var v = rval.chat_list.length-1, cnt=0; cnt < k; v--, cnt++){
                     if(rval.chat_list[v] === undefined) continue;
@@ -162,28 +174,9 @@ window.addEventListener('load',function(e){
     };
     _CW.Aspect.before(RL, ["updateRoomData"], aspect);
     var aspect_hilight = function(invocation){
+        console.dir(invocation)
         if(invocation.length==0) return;
-        var nohighlight = (location.hash.indexOf('rid')>-1)? location.hash.match(/rid([0-9]*)/)[1]: null;
-        invocation.forEach(function(v,i){
-            var room = RL.rooms[v];
-            _CW.ex_notice.set_keyword(room);
-            if(room.timeline!==null && room.timeline.chat_list!==null){
-                var r = room.timeline.chat_list;
-                if(room.id == nohighlight){
-                    for(var i=0;i<r.length;i++){
-                        /* room timeline highlight */
-                        var target = $('#cw_c'+r[i].id+' pre');
-                        var msg = _CW.ex_notice.highlight(target.html());
-                        if( msg!=null ){
-                            target.html(msg);
-                        }
-                        
-                    }
-                }
-            }
-        });
-        $('#cw_r'+nohighlight).removeClass('ui_chat_highlight');
-        return;
+        return _CW.ex_notice.highlight(invocation);
     };
-    _CW.Aspect.after(RL.view, ["build"], aspect_hilight);
+    _CW.Aspect.after(CW, ["renderMessage"], aspect_hilight);
 });
