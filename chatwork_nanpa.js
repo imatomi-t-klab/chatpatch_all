@@ -149,6 +149,41 @@ _CW.ex_notice = {
             msg = msg.replace( reg, "<span class='chrome_extension_highlight'>" + v + "</span>" );
         });
         return msg;
+    },
+    room_aa_imadesho : function(imaTxt){
+        if(imaTxt.length < 4){
+            for(var i = 0;i<(4 - imaTxt.length + i);i++){
+                imaTxt = imaTxt + "　";
+            }
+        }
+        var AA = "┌○┐<br>";
+        for(var m = 0;m<imaTxt.length;m++){
+            var charTxt = imaTxt.charAt(m);
+            if (imaTxt.charAt(m) == "ー"){
+                charTxt = "｜";
+            }
+            if (imaTxt.length - m == 4){
+                AA = AA + "｜" + charTxt + "｜ﾊ＿ﾊ <br>";
+            } else if(imaTxt.length - m == 3){
+                AA = AA + "｜" + charTxt + "｜ﾟωﾟ ) <br>";
+            } else if(imaTxt.length - m == 2){
+                AA = AA + "｜" + charTxt + "｜ ／/ <br>";
+            } else if(imaTxt.length - m == 1){
+                AA = AA + "｜" + charTxt + "｜(⌒)<br>";
+            } else{
+                AA = AA + "｜" + charTxt + "｜" + "<br>";
+            }
+        }
+        AA = AA + "└○┘し′”<br>";
+        return AA;
+    },
+    room_aa_keyword : function(msg){
+        if(msg===undefined) return;
+        var matches = msg.match( new RegExp( /.*でしょ$/ ) );
+        if(matches!=null){
+            return this.room_aa_imadesho(msg);
+        }
+        return null;
     }
 }
 
@@ -185,6 +220,11 @@ window.addEventListener('load',function(e){
     _CW.Aspect.before(RL, ["updateRoomData"], aspect_notice);
     var aspect_highlight = function(invocation){
         if(invocation.result.length==0) return;
+        /* changing AA plugin */
+        var aa = _CW.ex_notice.room_aa_keyword(invocation.result);
+        if(aa!=null){
+            return aa;
+        }
         /* timeline highlight */
         _CW.ex_notice.get_keyword( RM.id );
         return _CW.ex_notice.highlight( RM.id, invocation.result);
